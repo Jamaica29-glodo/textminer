@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🔍 Text Miner – Keyword Extraction, FAQ & Summarisation</title>
+
+  <!-- Google Font (used in the TruthFinder demo) -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap"
+        rel="stylesheet">
+
+  <style>
+    /* -------------------------------------------------
+       Global / Reset
+       ------------------------------------------------- */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: "Poppins", sans-serif;
+    }
+    body {
+      background: linear-gradient(135deg, #a1c4fd, #c2e9fb, #89f7fe);
+      min-height: 100vh;
+      color: #003049;
+    }
+
+    /* -------------------------------------------------
+       Navbar (responsive, hamburger)
+       ------------------------------------------------- */
+    .navbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 65px;
+      background: rgba(255, 255, 255, 0.35);
+      -webkit-backdrop-filter: blur(15px);
+      backdrop-filter: blur(15px);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;           /* <-- center everything */
+      padding: 0 20px;
+      z-index: 999;
+    }
+    /* hamburger stays on the far‑left */
+    .hamburger {
+      position: absolute;
+      left: 20px;
+    }
+
+    .nav-container {
+      display: flex;
+      gap: 30px;
+      align-items: center;
+      /* center the link list horizontally */
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .navbar a {
+      color: #003049;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 16px;
+      padding: 10px 18px;
+      border-radius: 12px;
+      transition: all .3s ease;
+      white-space: nowrap;
+    }
+    .navbar a:hover,
+    .navbar a.active {
+      background: linear-gradient(90deg, #219ebc, #023e8a);
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(2,62,138,.4);
+      transform: scale(1.05);
+    }
+
+    .hamburger {
+      display: none;
+      flex-direction: column;
+      cursor: pointer;
+      padding: 10px;
+      background: none;
+      border: none;
+    }
+    .hamburger span {
+      width: 25px;
+      height: 3px;
+      background: #003049;
+      margin: 3px 0;
+      border-radius: 3px;
+      transition: all .3s ease;
+    }
+    .hamburger.active span:nth-child(1) { transform: rotate(45deg) translate(8px,8px); }
+    .hamburger.active span:nth-child(2) { opacity: 0; }
+    .hamburger.active span:nth-child(3) { transform: rotate(-45deg) translate(7px,-7px); }
+
+    @media (max-width:768px) {
+      .hamburger { display: flex; }
+
+      /* mobile: the slide‑in menu overrides the centering */
+      .nav-container {
+        position: fixed;
+        top: 65px;
+        left: -100%;
+        width: 100%;
+        height: calc(100vh - 65px);
+        background: rgba(255,255,255,.98);
+        -webkit-backdrop-filter: blur(20px);
+        backdrop-filter: blur(20px);
+        flex-direction: column;
+        justify-content: flex-start;
+        padding: 30px 20px;
+        gap: 15px;
+        transition: left .3s ease;
+        overflow-y: auto;
+        transform: none;           /* cancel the desktop centering */
+      }
+      .nav-container.active { left: 0; }
+      .navbar a { width:100%; text-align:center; font-size:18px; }
+    }
+
+    /* -------------------------------------------------
+       Layout containers
+       ------------------------------------------------- */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 100px 20px 40px;
+    }
+    .glass-card {
+      background: rgba(255,255,255,.35);
+      border-radius: 20px;
+      padding: 2rem;
+      -webkit-backdrop-filter: blur(15px);
+      backdrop-filter: blur(15px);
+      box-shadow: 0 8px 32px rgba(0,0,0,.1);
+      margin-bottom: 30px;
+    }
+
+    /* -------------------------------------------------
+       Home Section
+       ------------------------------------------------- */
+    .home-header {
+      text-align: center;
+      color: #023e8a;
+      text-shadow: 0 0 6px rgba(255,255,255,.8);
+      font-weight: 800;
+      font-size: 2.5rem;
+      margin-bottom: .5rem;
+    }
+    .home-subtitle {
+      font-size: 1.2rem;
+      color: #003049;
+      margin-bottom: 2rem;
+    }
+
+    /* -------------------------------------------------
+       Keyword Extraction UI
+       ------------------------------------------------- */
+    textarea {
+      width: 100%;
+      border-radius: 14px;
+      border: none;
+      padding: 12px;
+      resize: vertical;
+      background: rgba(255,255,255,.8);
+      font-size: .95rem;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,.05);
+      margin-top: .4rem;
+    }
+    textarea:focus { outline: 2px solid #80bfff; }
+
+    .controls {
+      margin-top: 1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: .8rem;
+      align-items: center;
+    }
+    select {
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: none;
+      background: rgba(255,255,255,.7);
+      font-size: .9rem;
+    }
+    button {
+      background: linear-gradient(135deg, #007bff, #7f57ff);
+      border: none;
+      color: #fff;
+      border-radius: 12px;
+      padding: 10px 18px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all .3s ease;
+    }
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(0,0,0,.15);
+    }
+
+    table {
+      width: 100%;
+      margin-top: 1.5rem;
+      border-collapse: collapse;
+      background: rgba(255,255,255,.6);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 10px;
+      text-align: left;
+    }
+    th {
+      background: linear-gradient(90deg, #007bff, #a36bff);
+      color: #fff;
+    }
+    tr:nth-child(even) { background: rgba(255,255,255,.5); }
+
+    #summaryCard {
+      margin-top: 1.5rem;
+      padding: 1rem;
+      background: rgba(255,255,255,.7);
+      border-left: 4px solid #007bff;
+      border-radius: 8px;
+      display: none;
+    }
+
+    /* -------------------------------------------------
+       FAQ Section
+       ------------------------------------------------- */
+    .faq-item {
+      border-bottom: 1px solid rgba(0,0,0,.1);
+      padding: .8rem 0;
+    }
+    .faq-question {
+      cursor: pointer;
+      font-weight: 600;
+      color: #003366;
+      position: relative;
+      padding-right: 1.5rem;
+    }
+    .faq-question::after {
+      content: "▼";
+      position: absolute;
+      right: 0;
+      transition: transform .2s;
+    }
+    .faq-question.active::after { transform: rotate(180deg); }
+    .faq-answer {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height .3s ease;
+      color: #444;
+      margin-top: .4rem;
+    }
+
+    /* -------------------------------------------------
+       Footer
+       ------------------------------------------------- */
+    .footer {
+      text-align: center;
+      padding: 30px;
+      color: #023e8a;
+      font-size: .9rem;
+      margin-top: 40px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ====================== NAVBAR ====================== -->
+  <nav class="navbar">
+    <button class="hamburger" onclick="toggleMenu()">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="nav-container" id="navContainer">
+      <a href="#home"   onclick="showSection('home');   closeMenu();" class="active">🏠 Home</a>
+      <a href="#extract"onclick="showSection('extract');closeMenu();">🔎 Extract</a>
+      <a href="#faq"    onclick="showSection('faq');    closeMenu();">❓ FAQ</a>
+      <a href="#about"  onclick="showSection('about');  closeMenu();">ℹ️ About</a>
+    </div>
+  </nav>
+
+  <!-- ====================== MAIN CONTENT ====================== -->
+  <div class="container">
+
+    <!-- ---------------------- HOME ---------------------- -->
+    <section id="home" class="section active">
+      <div class="glass-card">
+        <h1 class="home-header">🔍 Text Miner</h1>
+        <p class="home-subtitle">
+          Extract keywords, view FAQs and get a quick summary.
+        </p>
+      </div>
+
+      <div class="glass-card">
+        <h2>Features</h2>
+        <ul>
+          <li>📄 Keyword extraction with TF‑IDF (approx.) or simplified RAKE</li>
+          <li>📝 One‑click extractive summarisation</li>
+          <li>💾 Download results as CSV</li>
+          <li>❓ Interactive FAQ with smooth toggles</li>
+          <li>🧊 Pure client‑side – no server, no data leak</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ---------------------- KEYWORD EXTRACTION ---------------------- -->
+    <section id="extract" class="section">
+      <div class="glass-card">
+        <h2>Keyword Extraction & Summarisation</h2>
+        <p>Paste or type any text below, choose an algorithm and hit "Extract" or "Summarise".</p>
+
+        <textarea id="inputText" rows="6"
+                  placeholder="Enter your text here…"></textarea>
+
+        <div class="controls">
+          <label for="algorithm">Algorithm:</label>
+          <select id="algorithm">
+            <option value="tfidf">TF‑IDF (approx.)</option>
+            <option value="rake">RAKE (simplified)</option>
+          </select>
+
+          <button onclick="extractKeywords()">Extract Keywords</button>
+          <button onclick="summarizeText()">Summarise Text</button>
+        </div>
+
+        <table id="resultTable">
+          <thead><tr><th>Keyword</th><th>Score</th></tr></thead>
+          <tbody></tbody>
+        </table>
+
+        <button id="downloadBtn" style="display:none;" onclick="downloadCSV()">📥 Download CSV</button>
+
+        <div id="summaryCard"></div>
+      </div>
+    </section>
+
+    <!-- ---------------------- FAQ ---------------------- -->
+    <section id="faq" class="section">
+      <div class="glass-card">
+        <h2>Frequently Asked Questions</h2>
+
+        <div class="faq-item">
+          <div class="faq-question">How does the TF‑IDF approximation work?</div>
+          <div class="faq-answer">
+            It calculates term‑frequency divided by the total number of tokens in the supplied text.
+            Since we only have one document, the inverse‑document‑frequency part is omitted,
+            which is why we call it an “approximation”. It still highlights the most frequent,
+            non‑stop‑word terms.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question">What is RAKE and why is it “simplified” here?</div>
+          <div class="faq-answer">
+            RAKE (Rapid Automatic Keyword Extraction) normally builds a graph of co‑occurring words.
+            In this lightweight version we split the text into punctuation‑delimited phrases,
+            strip stop‑words, and score a phrase by its length (number of words). It gives a quick,
+            readable set of multi‑word keywords.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question">Can I use this page with large documents?</div>
+          <div class="faq-answer">
+            The demo runs entirely in the browser, so the only limit is the memory/CPU of the user’s device.
+            For very large texts you may notice a short pause while the script tokenises and scores the words.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <div class="faq-question">How is the summary generated?</div>
+          <div class="faq-answer">
+            The summary function extracts the first two‑to‑three sentences of the input (or up to 200 characters)
+            as a quick “lead” summary. It’s a deterministic heuristic that works well for prose and news‑style text
+            without requiring an external AI service.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------------- ABOUT ---------------------- -->
+    <section id="about" class="section">
+      <div class="glass-card">
+        <h2>About This Project</h2>
+        <p>
+          This demonstration showcases basic text‑mining techniques (keyword extraction, summarisation)
+          implemented in pure JavaScript.  All processing happens client‑side, guaranteeing that your
+          data never leaves your device – perfect for privacy‑focused workflows.
+        </p>
+
+        <h3>Tech Stack</h3>
+        <ul>
+          <li>HTML + CSS (glass‑morphism, responsive layout)</li>
+          <li>Vanilla JavaScript</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ---------------------- FOOTER ---------------------- -->
+    <div class="footer">
+      © 2025 Text Mining✨
+    </div>
+  </div>
+
+  <!-- ====================== JAVASCRIPT LOGIC ====================== -->
+  <script>
+    // ---------- STOPWORDS ----------
+    const stopwords = new Set([
+      "a","an","and","the","to","of","in","on","for","is","are","was","were",
+      "this","that","it","as","at","by","be","or","from","with","about","into",
+      "one","two","three","four","five","six","seven","eight","nine","ten",
+      "using","sample","fig","figure","image"
+    ]);
+
+    // ---------- PRE‑PROCESSING ----------
+    function preprocess(text) {
+      text = text.toLowerCase().replace(/[^a-z\s]/g, " ");
+      const words = text.split(/\s+/)
+                        .filter(w => w && !stopwords.has(w) && w.length >= 3);
+      return words;
+    }
+
+    // ---------- TF‑IDF (approx.) ----------
+    function getTFIDF(words) {
+      const freq = {};
+      words.forEach(w => freq[w] = (freq[w] || 0) + 1);
+      const total = words.length;
+      const scores = {};
+      for (const [w,f] of Object.entries(freq)) {
+        scores[w] = f / total;   // term‑frequency / total‑tokens
+      }
+      return scores;
+    }
+
+    // ---------- SIMPLE RAKE ----------
+    function getRAKE(text) {
+      const phrases = text.toLowerCase().split(/[\.,;:!?]/);
+      const scores = {};
+      phrases.forEach(p => {
+        const words = preprocess(p);
+        const phrase = words.join(" ");
+        if (phrase) {
+          scores[phrase] = (scores[phrase] || 0) + words.length; // longer phrase = higher score
+        }
+      });
+      return scores;
+    }
+
+    // ---------- KEYWORD EXTRACTION ----------
+    function extractKeywords() {
+      const txt = document.getElementById("inputText").value.trim();
+      const algo = document.getElementById("algorithm").value;
+      const tbody = document.querySelector("#resultTable tbody");
+      tbody.innerHTML = "";
+
+      if (!txt) {
+        alert("Please enter some text first!");
+        return;
+      }
+
+      const results = (algo === "tfidf") ? getTFIDF(preprocess(txt))
+                                         : getRAKE(txt);
+
+      // Sort descending, keep top 10
+      const sorted = Object.entries(results)
+                           .sort((a,b) => b[1] - a[1])
+                           .slice(0,10);
+
+      sorted.forEach(([kw, sc]) => {
+        const row = `<tr><td>${kw}</td><td>${sc.toFixed(3)}</td></tr>`;
+        tbody.insertAdjacentHTML("beforeend", row);
+      });
+
+      document.getElementById("downloadBtn").style.display = sorted.length ? "inline-block" : "none";
+    }
+
+    // ---------- CSV DOWNLOAD ----------
+    function downloadCSV() {
+      const rows = [["Keyword","Score"]];
+      document.querySelectorAll("#resultTable tbody tr").forEach(tr => {
+        const cells = tr.querySelectorAll("td");
+        rows.push([cells[0].innerText, cells[1].innerText]);
+      });
+      const csv = rows.map(r=>r.join(",")).join("\n");
+      const blob = new Blob([csv], {type:"text/csv"});
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "keywords.csv";
+      a.click();
+    }
+
+    // ---------- SIMPLE TEXT SUMMARISER ----------
+    function summarizeText() {
+      const txt = document.getElementById("inputText").value.trim();
+      const card = document.getElementById("summaryCard");
+      if (!txt) {
+        alert("Enter text to summarise first!");
+        return;
+      }
+
+      const sentences = txt.match(/[^\.!\?]+[\.!\?]+/g) || [txt];
+      const maxSentences = 2;
+      const summary = sentences.slice(0, maxSentences).join(" ").trim();
+
+      const final = summary.length ? summary : txt.substring(0,200) + "...";
+      card.innerHTML = `<strong>Summary:</strong> ${final}`;
+      card.style.display = "block";
+    }
+
+    // ---------- FAQ TOGGLE ----------
+    document.querySelectorAll(".faq-question").forEach(q => {
+      q.addEventListener("click", () => {
+        const active = q.classList.toggle("active");
+        const ans = q.nextElementSibling;
+        ans.style.maxHeight = active ? ans.scrollHeight + "px" : null;
+      });
+    });
+
+    // ---------- RESPONSIVE MENU ----------
+    function toggleMenu() {
+      const nav = document.getElementById("navContainer");
+      const btn = document.querySelector(".hamburger");
+      nav.classList.toggle("active");
+      btn.classList.toggle("active");
+    }
+    function closeMenu() {
+      const nav = document.getElementById("navContainer");
+      const btn = document.querySelector(".hamburger");
+      nav.classList.remove("active");
+      btn.classList.remove("active");
+    }
+
+    // ---------- SECTION NAVIGATION ----------
+    function showSection(id) {
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.navbar a').forEach(a => a.classList.remove('active'));
+
+      document.getElementById(id).classList.add('active');
+      const link = document.querySelector(`.navbar a[href="#${id}"]`);
+      if (link) link.classList.add('active');
+
+      window.scrollTo({top:0, behavior:'smooth'});
+    }
+
+    // Close mobile menu when clicking outside
+    document.addEventListener('click', e => {
+      const nav = document.getElementById('navContainer');
+      const btn = document.querySelector('.hamburger');
+      const navbar = document.querySelector('.navbar');
+      if (!navbar.contains(e.target) && nav.classList.contains('active')) closeMenu();
+    });
+  </script>
+</body>
+</html>
